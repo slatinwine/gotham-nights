@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>哥谭夜行 · Gotham Nights</title>
+<style>
+  :root{
+    --bg:#0c0e13;
+    --panel:#14171f;
+    --line:#262b38;
+    --ink:#d8d5cc;
+    --dim:#8a8f9c;
+    --gold:#e6b23c;
+    --danger:#a4483f;
+    --safe:#4a8f6d;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background:var(--bg);color:var(--ink);
+    font-family:"Microsoft YaHei","PingFang SC",sans-serif;
+    min-height:100vh;
+  }
+  #wrap{max-width:880px;margin:0 auto;padding:20px 16px 60px}
+
+  /* ---------- 标题屏 ---------- */
+  #title-screen{padding:60px 0;text-align:center}
+  #title-screen h1{
+    font-size:42px;letter-spacing:14px;color:var(--gold);
+    font-family:Georgia,"STZhongsong",serif;
+    text-shadow:0 0 24px rgba(230,178,60,.25);
+  }
+  #title-screen .sub{color:var(--dim);letter-spacing:6px;margin:14px 0 30px;font-size:14px}
+  #title-screen .intro{
+    text-align:left;max-width:560px;margin:0 auto 34px;
+    background:var(--panel);border:1px solid var(--line);border-radius:8px;
+    padding:22px 26px;line-height:2;font-size:14px;color:var(--ink);
+  }
+  #title-screen .intro em{color:var(--gold);font-style:normal}
+  .btn{
+    background:transparent;color:var(--gold);border:1px solid var(--gold);
+    padding:10px 42px;font-size:16px;letter-spacing:6px;cursor:pointer;
+    border-radius:4px;transition:.2s;font-family:inherit;
+  }
+  .btn:hover{background:var(--gold);color:#0c0e13}
+
+  /* ---------- 游戏界面 ---------- */
+  #game{display:none}
+  header{
+    display:flex;justify-content:space-between;align-items:baseline;
+    border-bottom:1px solid var(--line);padding-bottom:10px;margin-bottom:12px;
+  }
+  header h2{font-family:Georgia,serif;color:var(--gold);font-size:20px;letter-spacing:4px}
+  #day-info{color:var(--dim);font-size:13px}
+
+  #stats{display:grid;grid-template-columns:1fr 1fr;gap:8px 18px;margin-bottom:14px}
+  .stat{font-size:12px}
+  .stat .lab{display:flex;justify-content:space-between;color:var(--dim);margin-bottom:3px}
+  .bar{height:8px;background:#1d2230;border-radius:4px;overflow:hidden}
+  .bar i{display:block;height:100%;border-radius:4px;transition:width .4s}
+  .bar.hp i{background:var(--safe)}
+  .bar.san i{background:var(--gold)}
+  .plain{display:flex;gap:16px;color:var(--ink);font-size:12px;margin-top:2px}
+  .plain b{color:var(--gold);font-weight:normal}
+  .plain .crime b{color:var(--danger)}
+
+  #scene{
+    background:var(--panel);border:1px solid var(--line);border-radius:8px;
+    padding:18px 20px;min-height:120px;margin-bottom:14px;
+  }
+  #scene .loc-tag{color:var(--gold);font-size:12px;letter-spacing:3px;margin-bottom:8px}
+  #scene .story{line-height:1.9;font-size:14px;white-space:pre-wrap}
+
+  #choices{display:flex;flex-direction:column;gap:8px}
+  .choice{
+    text-align:left;background:transparent;border:1px solid var(--line);
+    color:var(--ink);padding:11px 16px;border-radius:6px;cursor:pointer;
+    font-size:14px;transition:.15s;font-family:inherit;line-height:1.6;
+  }
+  .choice:hover{border-color:var(--gold);color:var(--gold)}
+  .choice small{display:block;color:var(--dim);font-size:12px;margin-top:2px}
+  .choice:hover small{color:var(--gold);opacity:.8}
+
+  #log{
+    margin-top:16px;border-top:1px solid var(--line);padding-top:12px;
+    max-height:240px;overflow-y:auto;font-size:13px;line-height:1.9;
+  }
+  #log .entry{margin-bottom:6px;color:var(--dim);animation:fadein .4s}
+  #log .entry.hl{color:var(--gold)}
+  #log .entry.bad{color:var(--danger)}
+  #log .entry.good{color:var(--safe)}
+  @keyframes fadein{from{opacity:0;transform:translateY(4px)}to{opacity:1}}
+
+  /* ---------- 结局 ---------- */
+  #ending{
+    display:none;text-align:center;padding:70px 20px;
+  }
+  #ending h1{color:var(--gold);font-family:Georgia,serif;font-size:30px;letter-spacing:8px;margin-bottom:24px}
+  #ending .epilogue{
+    max-width:560px;margin:0 auto 30px;text-align:left;line-height:2.1;font-size:14px;
+    background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:24px 28px;
+    white-space:pre-wrap;
+  }
+  #ending .final-stats{color:var(--dim);font-size:13px;margin-bottom:30px;letter-spacing:2px}
+</style>
+</head>
+<body>
+<div id="wrap">
+
+  <!-- 标题屏 -->
+  <div id="title-screen">
+    <h1>哥谭夜行</h1>
+    <div class="sub">GOTHAM NIGHTS · 开放世界文字冒险</div>
+    <div class="intro">
+      你只是哥谭的一个普通人。房租、加班、地铁末班车。<br>
+      但这座城市的夜晚，从不允许普通人袖手旁观。<br><br>
+      你可以挺身而出，积攒<em>正义值</em>——当它足够高时，屋顶上会有人向你点头，
+      罗宾会邀你夜巡，蝙蝠侠会与你并肩。<br>
+      你也可以伸手作恶，积攒<em>犯罪值</em>——警察会盯上你，蝙蝠侠会追杀你……
+      但如果你笑得够大声，也许某位紫衣绅士会请你吃饭。<br><br>
+      留意你的<em>生命值</em>与<em>精神值</em>。在哥谭，死于刀下是常态，疯在阿卡姆是归宿。
+    </div>
+    <button class="btn" onclick="startGame()">进 入 哥 谭</button>
+  </div>
+
+  <!-- 游戏 -->
+  <div id="game">
+    <header>
+      <h2>哥谭夜行</h2>
+      <div id="day-info"></div>
+    </header>
+
+    <div id="stats">
+      <div class="stat"><div class="lab"><span>生命值</span><span id="hp-num"></span></div>
+        <div class="bar hp"><i id="hp-bar"></i></div></div>
+      <div class="stat"><div class="lab"><span>精神值</span><span id="san-num"></span></div>
+        <div class="bar san"><i id="san-bar"></i></div></div>
+      <div class="plain">
+        <span>正义 <b id="just-num">0</b></span>
+        <span class="crime">犯罪 <b id="crime-num">0</b></span>
+        <span>金钱 <b id="money-num">$0</b></span>
+        <span>身份 <b id="partner-num">无</b></span>
+      </div>
+    </div>
+
+    <div id="scene">
+      <div class="loc-tag" id="loc-tag"></div>
+      <div class="story" id="story"></div>
+    </div>
+
+    <div id="choices"></div>
+    <div id="log"></div>
+  </div>
+
+  <!-- 结局 -->
+  <div id="ending">
+    <h1 id="end-title"></h1>
+    <div class="epilogue" id="end-text"></div>
+    <div class="final-stats" id="end-stats"></div>
+    <button class="btn" onclick="location.reload()">再 来 一 次</button>
+  </div>
+
+</div>
+
+<script>
+/* ================= 游戏状态 ================= */
+let S = null, turn = 0, pendingSpecial = null, gameOver = false;
+
+function newState(){
+  return {
+    hp:100, san:100, justice:0, crime:0, money:50,
+    partner:'none',           // none | robin | batman | joker
+    metRobin:false, metBatman:false, metJoker:false,
+    gordon:false, batWarn:false, hasJob:false, jokeTold:false,
+  };
+}
+
+/* ================= 工具 ================= */
+const rnd = a => a[Math.floor(Math.random()*a.length)];
+const roll = p => Math.random() < p;
+function clamp(v){return Math.max(0,Math.min(100,v));}
+function addLog(t,cls){const e=document.getElementById('log');
+  const d=document.createElement('div');d.className='entry '+(cls||'');d.innerHTML=t;
+  e.appendChild(d);e.scrollTop=e.scrollHeight;}
+function render(){
+  document.getElementById('hp-num').textContent=S.hp;
+  document.getElementById('hp-bar').style.width=S.hp+'%';
+  document.getElementById('san-num').textContent=S.san;
+  document.getElementById('san-bar').style.width=S.san+'%';
+  document.getElementById('just-num').textContent=S.justice;
+  document.getElementById('crime-num').textContent=S.crime;
+  document.getElementById('money-num').textContent='$'+S.money;
+  const pn={none:'普通市民',robin:'罗宾的搭档',batman:'蝙蝠侠盟友',joker:'小丑的帮凶'}[S.partner];
+  document.getElementById('partner-num').textContent=pn;
+  document.getElementById('day-info').textContent='第 '+day()+' 天 · 第 '+turn+' 个夜晚';
+}
+
+/* ================= 地点 ================= */
+const LOCS = {
+  home:{name:'旧公寓 · 煤气灯下的房间'},
+  downtown:{name:'哥谭市中心 · 霓虹与人流'},
+  parkrow:{name:'公园街 · 犯罪巷'},
+  docks:{name:'码头区 · 盐锈与铁皮'},
+  wayne:{name:'韦恩企业大厦 · 玻璃塔'},
+  arkham:{name:'阿卡姆疯人院外围 · 高墙'},
+  iceberg:{name:'冰山酒吧 · 企鹅人的地盘'},
+  commute:{name:'上班路上 · 哥谭的日常'},
+};
+
+/* ================= 普通事件库 ================= */
+/* 结构：{loc, w(权重), when(s)?, text, choices:[{t, tip?, when?, fx}]} */
+const EVENTS = [
+
+/* ---- 公寓 ---- */
+{loc:'home',w:10,text:'你把外套扔在椅背上，热水壶呜呜作响。窗外警笛声远远近近，像这座城市的呼吸。',
+ choices:[
+  {t:'倒头就睡',tip:'恢复生命与精神',fx:s=>{s.hp=clamp(s.hp+12);s.san=clamp(s.san+8);return '你睡了很久，梦里没有小丑，也没有蝙蝠侠。体力与精神都恢复了一些。';}},
+  {t:'读今天的《哥谭公报》',tip:'了解城市动态',fx:s=>{s.san=clamp(s.san+2);return rnd([
+    '头版：双面人又一次在法庭门口抛硬币决定法官的判决。这座城市病得不轻。',
+    '专栏：有人在质疑蝙蝠侠的合法性，配图是他立在滴水兽上的剪影。你盯了很久。',
+    '小道消息：冰山酒吧最近有大生意，企鹅人在找"胆子大的人"。',
+    '新闻：阿卡姆疯人院本周已有两起越狱未遂。守卫的加班费都没人领。']);}},
+  {t:'对着镜子看自己',fx:s=>{
+    let t='镜子里的人疲惫、普通。';
+    if(s.justice>s.crime){t+='但你想起那对老夫妇感谢你的眼神——那不是普通人能做到的事。';s.san=clamp(s.san+4);}
+    else if(s.crime>s.justice){t+='你不敢看自己的眼睛太久。那些钱放在抽屉里，硌得慌。';s.san=clamp(s.san-3);}
+    else t+='你还是你。在哥谭，这已经算一种幸运。';
+    return t;}},
+ ]},
+
+/* ---- 市中心 ---- */
+{loc:'downtown',w:12,text:'人行道上，一个飞毛腿少年一把夺走女士的手提包，尖叫声划破人流。',
+ choices:[
+  {t:'追！',tip:'正义 +4，有受伤风险',fx:s=>{s.justice=Math.min(100,s.justice+4);
+    if(roll(.35)){s.hp=clamp(s.hp-6);return '你撞翻了两个水果摊才把他按在地上。手提包回到女士手里，你的手肘擦破了血。她连声感谢，路人开始鼓掌。';}
+    return '你在下一个街角把他堵住，包完好无损地交还。女士眼眶发红地感谢你——在哥谭，这样的瞬间很贵。';}},
+  {t:'视而不见',tip:'精神 -2',fx:s=>{s.san=clamp(s.san-2);return '你低头加快脚步。哥谭每天都有一百个这样的瞬间，你只有一个胃要喂。';}},
+  {t:'趁乱顺走旁边的快递箱',tip:'犯罪 +3，金钱 +20',fx:s=>{s.crime=Math.min(100,s.crime+3);s.money+=20;return '所有人的目光都在追小偷，你拎起那只无人看管的箱子拐进小巷。里面是一台二手收音机。还不错。';}},
+ ]},
+{loc:'downtown',w:8,text:'韦恩基金会的募捐站在街角，志愿者举着"为了哥谭的孩子"的牌子。',
+ choices:[
+  {t:'捐出 $20',tip:'正义 +3',fx:s=>{if(s.money<20)return '你摸了摸口袋。连二十块都拿不出来——行善也是要成本的。';
+    s.money-=20;s.justice=Math.min(100,s.justice+3);return '志愿者郑重地在你名字旁画了颗星星。你觉得自己今晚配得上热汤。';}},
+  {t:'笑着走开',fx:()=> '你礼貌点头离开。募捐箱在夕阳下反光，像一枚不肯落的硬币。'},
+  {t:'抢走募捐箱',tip:'犯罪 +6，金钱 +40',fx:s=>{s.crime=Math.min(100,s.crime+6);s.money+=40;
+    return '你撞倒志愿者抓起箱子就跑，身后的哭喊声追了你三条街。箱子里的硬币在你口袋里哗啦作响，像在骂你。';}},
+ ]},
+{loc:'downtown',w:10,text:'街角便利店的门被撞开，一个戴滑雪帽的男人挥着枪指向收银台。',
+ choices:[
+  {t:'从背后扑上去',tip:'正义 +5，可能受伤',fx:s=>{s.justice=Math.min(100,s.justice+5);
+    if(roll(.4)){s.hp=clamp(s.hp-12);return '你们撞碎了一整排泡面货架。枪走了火，子弹擦过你的肩膀。但你还是死死锁住了他的手腕，直到警察赶到。店主的谢意重得像铁。';}
+    return '你从侧面的货架阴影里扑出，把他按在收银台上。枪滑到了牛奶箱后面。老板娘要送你一辈子免费咖啡。';}},
+  {t:'悄悄报警',tip:'正义 +2',fx:s=>{s.justice=Math.min(100,s.justice+2);return '你躲在报刊亭后拨了911。三分钟后警笛响起，劫匪夺路而逃，撞上了赶来的巡逻车。干得漂亮——用哥谭的方式。';}},
+  {t:'低头继续看货架',tip:'精神 -2',fx:s=>{s.san=clamp(s.san-2);return '你研究着两种口味的罐头，听身后的人哭着交出现金。这个城市教会你的第一件事：别抬头。';}},
+ ]},
+{loc:'downtown',w:6,text:'记者薇琪·瓦尔在咖啡馆门口整理录音笔，她刚做完一期关于"哥谭究竟需要谁"的报道。',
+ choices:[
+  {t:'和她聊聊这座城市',tip:'精神 +3',fx:s=>{s.san=clamp(s.san+3);return '她说："这座城市烂透了，但我见过烂泥里长出来的东西。你呢，你相信哥谭有救吗？" 你没有答案，但聊完之后心里亮了一点。';}},
+  {t:'告诉她你做过的事',tip:'风险与机遇并存',fx:s=>{
+    if(s.justice>s.crime){s.justice=Math.min(100,s.justice+2);return '她认真听完你阻止抢劫的经历，眼睛发亮："平凡人的勇气，这才是我要的故事！"你的名字登上了报纸角落。';}
+    s.crime=Math.min(100,s.crime+2);return '她说得越多，你越后悔开口。第二天，"匿名线人爆料街头劫案内情"见报。你现在在警局档案里多了一个文件夹。';}},
+  {t:'绕开她走',fx:()=>'记者。麻烦的同义词。你从街对面走掉了。'},
+ ]},
+
+/* ---- 公园街 ---- */
+{loc:'parkrow',w:12,text:'公园街深巷，两个男人正把一位老妇人推到墙角，抢她的购物袋。路灯在这里坏了很多年。',
+ choices:[
+  {t:'抄起砖头冲过去',tip:'正义 +5，大概率受伤',fx:s=>{s.justice=Math.min(100,s.justice+5);
+    if(roll(.55)){s.hp=clamp(s.hp-14);return '你挨了一棍才把他们吓跑。老妇人抱着散落的苹果不肯走，非要给你塞两个。你嘴角流血，但吃到了今晚最甜的东西。';}
+    return '你连人带砖头冲过去，吼声比想象中大。两人骂骂咧咧地散了。这就是犯罪巷的规矩：谁嗓门大谁赢。';}},
+  {t:'大喊"警察来了"',tip:'正义 +2，无伤',fx:s=>{s.justice=Math.min(100,s.justice+2);return '你的喊声在巷子里撞出回音。两个混混对视一眼，跑得比蝙蝠车还快。谎话有时比砖头好用。';}},
+  {t:'等他们走完后捡漏',tip:'犯罪 +4，金钱 +30',fx:s=>{s.crime=Math.min(100,s.crime+4);s.money+=30;return '老妇人被推倒在墙角啜泣。你从散落的袋子里"捡"走了那个厚钱包。她没有看见你。但你自己看见了你自己。';}},
+ ]},
+{loc:'parkrow',w:10,text:'"新面孔？"三个纹着法尔科内乌鸦的男人堵在巷口，手心摊开："这条街，每周十五块。"',
+ choices:[
+  {t:'交钱，买平安',tip:'金钱 -15',fx:s=>{if(s.money<15)return '你翻遍口袋只有几枚硬币。领头的盯着你看了三秒，收走了你仅有的钱，"下周补齐，不然卸你一条胳膊。"';
+    s.money-=15;return '钱递过去，乌鸦们笑着让开了路。在犯罪巷，这叫"税"。';}},
+  {t:'一拳打在领头脸上',tip:'高风险，正义 +5',fx:s=>{
+    if(roll(.4)){s.justice=Math.min(100,s.justice+5);return '你这一拳快得连自己都惊讶。三个人愣住的那一刻，你转身消失在巷网深处。今晚，犯罪巷有人说：这条街不全是软柿子。';}
+    s.hp=clamp(s.hp-16);return '下一秒你就被按在地上。拳脚像雨点，你的肋骨记住了每一根乌鸦的名字。他们走时说："再见到你，就要见血了。"';}},
+  {t:'"……我入伙。"',tip:'犯罪 +6，金钱 +25',fx:s=>{s.crime=Math.min(100,s.crime+6);s.money+=25;return '你收下了第一个"任务"：看着那个总是准时交钱的老裁缝。乌鸦们拍着你的肩。这条街从此认识你了——用错误的方式。';}},
+ ]},
+{loc:'parkrow',w:8,text:'路灯下躺着一个皮夹，钞票的边角露在外面。四下无人。',
+ choices:[
+  {t:'想办法归还失主',tip:'正义 +3',fx:s=>{s.justice=Math.min(100,s.justice+3);return '证件显示主人住在两个街区外。你敲门交还时，那位退伍老兵敬了个不太标准的军礼："哥谭还有你这样的人。"';}},
+  {t:'揣进兜里',tip:'犯罪 +2，金钱 +25',fx:s=>{s.crime=Math.min(100,s.crime+2);s.money+=25;return '二十五块钱和一张陌生人的笑脸照片。你告诉自己：这不算偷，这叫捡。';}},
+ ]},
+{loc:'parkrow',w:6,text:'深夜，你听见废弃公寓里传出压抑的哭声，断断续续，像个孩子。',
+ choices:[
+  {t:'上去查看',tip:'正义 +4，精神 -3',fx:s=>{s.justice=Math.min(100,s.justice+4);s.san=clamp(s.san-3);return '一个蜷在毛毯里的男孩，父母失踪三天了。你把他送到格蕾丝收容所，嬷嬷握着你的手说"上帝记得"。你走夜路回家，风声听起来都温柔了些。';}},
+  {t:'快步走开，别多事',tip:'精神 -5',fx:s=>{s.san=clamp(s.san-5);return '哭声在身后越来越远，却在你脑子里越来越响。你整晚都在想那扇窗。';}},
+ ]},
+{loc:'parkrow',w:6,when:s=>s.crime>=20,text:'巷口站着上周你见过的乌鸦——他们记得你。这次是四个人，手里有钢管。',
+ choices:[
+  {t:'硬拼',tip:'生命 -18',fx:s=>{s.hp=clamp(s.hp-18);s.crime=Math.min(100,s.crime+2);return '钢管、砖头、牙齿。你放倒了一个，但代价是三处淤青和一颗松动的牙。他们撂下话："下不为例。"';}},
+  {t:'撒腿就跑',fx:s=>{if(roll(.5)){return '你熟悉这里的每一条近道。三个街区后，只剩你自己的喘息声。';}s.hp=clamp(s.hp-8);return '一根钢管擦过你的后背。但你还是逃掉了。回头路，是用皮换来的。';}},
+  {t:'掏钱消灾',tip:'金钱 -40',fx:s=>{s.money=Math.max(0,s.money-40);return '四张十块递过去，领头的掂了掂，笑了："聪明人。"比挨打便宜，比尊严便宜。';}},
+ ]},
+
+/* ---- 码头区 ---- */
+{loc:'docks',w:12,text:'三号泊位的集装箱船在卸"鱼"，但箱子上印的是韦恩企业的logo，搬箱子的人不看任何人的眼睛。',
+ choices:[
+  {t:'匿名举报给海岸警卫队',tip:'正义 +5',fx:s=>{s.justice=Math.min(100,s.justice+5);return '凌晨两点，蓝白色的巡逻艇包抄了泊位。第二天报纸头条：《韦恩货运渠道遭毒瘤寄生，一锅端》。你在 anonymity 里笑了。';}},
+  {t:'替他们望风',tip:'犯罪 +5，金钱 +50',fx:s=>{s.crime=Math.min(100,s.crime+5);s.money+=50;return '你在栈桥尽头守了四小时，烟抽了半包。工头塞给你五十块："嘴严点，哥谭的鱼钩上从不挂空饵。"';}},
+  {t:'这不是你该来的地方',fx:()=>'你转身走回大路。身后吊机的影子在水面摇晃，像巨大的绞架。'},
+ ]},
+{loc:'docks',w:8,text:'两个穿西装的胖子拦住你："法尔科内先生的码头，过路费二十块。你猜怎么着——现在就要。"',
+ choices:[
+  {t:'交钱走人',tip:'金钱 -20',fx:s=>{s.money=Math.max(0,s.money-20);return '"聪明人。"胖子数着钱笑。罗马人在哥谭不下棋，他们直接收过路费。';}},
+  {t:'"你知道蝙蝠侠今晚在哪吗？"',tip:'五成吓退',fx:s=>{
+    if(roll(.5))return '西装们的脸色白了半个色号，互相看看，让开了路。恐惧是这个城市最通用的货币。';
+    s.hp=clamp(s.hp-12);return '"我们就是蝙蝠侠的债主。"领头的一拳打在你胃上。你蜷在地上，学会了一件事：别拿蝙蝠侠吓唬债主。';}},
+  {t:'硬气到底',tip:'六成挨打',fx:s=>{if(roll(.6)){s.hp=clamp(s.hp-15);return '你被"友好交流"了一顿，丢在渔网堆上。肋骨没断，算法尔科内先生心情好。';}
+    return '你盯着他们，一动不动。胖子骂了句什么，摆摆手走了。有时候不要命的人最贵。';}},
+ ]},
+{loc:'docks',w:10,text:'货栈外贴着招工告示：夜班卸货，日结，$25。工头叼着牙签打量你："能扛吗？"',
+ choices:[
+  {t:'扛起一整夜的货',tip:'金钱 +25，生命 -6',fx:s=>{s.money+=25;s.hp=clamp(s.hp-6);return '肩膀磨出血泡，后背酸得像被轧路机碾过。但天亮时，二十五块钱是真的。诚实的汗水在这个城市几乎算奢侈品。';}},
+  {t:'太累了，去别处逛逛',fx:()=>'你看着告示上"日结"两个字咽了口唾沫，还是走了。今晚的月光免费，就这样吧。'},
+ ]},
+{loc:'docks',w:8,text:'一排集装箱的门没锁严。里面码着整箱的走私手表，在黑暗里泛着细碎的光。',
+ choices:[
+  {t:'报告港务局',tip:'正义 +2',fx:s=>{s.justice=Math.min(100,s.justice+2);return '你打了个匿名电话。港务局慢吞吞地贴了封条——但至少，这批赃物见不到明天的市场了。';}},
+  {t:'能搬多少搬多少',tip:'犯罪 +6，金钱 +70',fx:s=>{s.crime=Math.min(100,s.crime+6);s.money+=70;return '你搬空了两个背包。黑市贩子一边验货一边吹口哨："下次带更多来。"金表在口袋里，沉得像审判日。';}},
+  {t:'关好门，就当没看见',fx:()=>'你把门推严实，退回黑暗里。有些光不该属于你——至少今晚不该。'},
+ ]},
+
+/* ---- 韦恩企业 ---- */
+{loc:'wayne',w:10,when:s=>s.crime<30,text:'韦恩企业大厅里的招聘日。玻璃与黄铜的干净世界里，前台小姐微笑着递给你申请表。',
+ choices:[
+  {t:'认真填表，参加面试',tip:'获得稳定工作',fx:s=>{
+    if(roll(.65)){s.hasJob=true;return '面试官在你简历上圈了三个地方，一周后录用通知到了：韦恩企业后勤部。有工牌，有餐补，有未来。你的犯罪倾向让这份合同更珍贵了。';}
+    return '"我们再联系您。"标准微笑，标准拒绝。你走出大厅时，玻璃塔在夕阳里像一座太干净的山，容不下你。';}},
+  {t:'在表上乱写一通',fx:()=>'你在"特长"栏写了"擅长跑步（从各种地方）"。前台小姐的表情管理堪称韦恩企业的隐藏资产。'},
+ ]},
+{loc:'wayne',w:8,text:'顶层慈善晚会的请柬在大厅礼仪台前排着队。香槟塔在落地窗后闪闪发亮，布鲁斯·韦恩本人据说会出席。',
+ choices:[
+  {t:'租套西装挤进去',tip:'金钱 -15，精神 +5',fx:s=>{if(s.money<15)return '你连租西装的钱都凑不齐，只能在门外闻了闻香槟的空气。';
+    s.money-=15;s.san=clamp(s.san+5);s.justice=Math.min(100,s.justice+2);let t='你在鎏金大厅里站了三小时。有人和你聊哥谭的教育预算，聊得你眼眶发热——原来这城里还有人真的在乎。';
+    if(roll(.3)){t+='\n\n角落里，一个高大的黑发男人独自望着窗外。你们对视了一眼，他微微点头。他就是布鲁斯·韦恩——不知为何，那眼神像在称量你的灵魂。';}
+    return t;}},
+  {t:'混进后台，顺手牵羊',tip:'犯罪 +7，金钱 +90',fx:s=>{s.crime=Math.min(100,s.crime+7);s.money+=90;return '服务生制服是从洗衣房"借"的。你端着托盘穿行在宾客之间，最后从更衣室带走了一块名表和两叠现金。香槟的味道，你是在逃出三个街区后才敢品的。';}},
+  {t:'这种场合不属于你',fx:()=>'你隔着马路看了看那片灯光，转身走进自己那片黑暗。两边都是哥谭，只是不通航。'},
+ ]},
+{loc:'wayne',w:6,text:'韦恩企业开放参观日，展厅里陈列着哥谭的历史照片——包括那对在犯罪巷死去的老夫妇。',
+ choices:[
+  {t:'在老照片前站一会儿',tip:'精神 +2',fx:s=>{s.san=clamp(s.san+2);return '照片下面写着一行小字："纪念一切苦难的开始。"你想起这城市为何需要一只蝙蝠，忽然明白了什么。';}},
+  {t:'听听导游的八卦',fx:()=>'导游压低声音："听说韦恩先生的地下三层有九层楼……"游客们哄笑。只有你没笑。'},
+ ]},
+
+/* ---- 阿卡姆外围 ---- */
+{loc:'arkham',w:10,text:'疯人院的高墙外，你听见守卫的闲聊："……C区昨晚又闹了，说是有人在墙里敲暗号。"',
+ choices:[
+  {t:'记下细节，通知警方',tip:'正义 +4',fx:s=>{s.justice=Math.min(100,s.justice+4);return '你把听到的时间、地点写下来投进警局信箱。三天后，越狱团伙在排水道被一网打尽。报纸上写着"知情市民协助"。匿名，但重要。';}},
+  {t:'"敲暗号？我能帮上忙吗。"',tip:'犯罪 +8，精神 -10',fx:s=>{s.crime=Math.min(100,s.crime+8);s.san=clamp(s.san-10);return '墙根下的声音停了三秒，然后一个沙哑的笑顺着砖缝渗出来："有意思……排队等着，小朋友。"你不知道自己刚和什么做了交易。手心全是汗。';}},
+  {t:'离这堵墙远一点',fx:()=>'高墙里偶尔传出笑声，不像人能发出来的。你加快脚步，把阿卡姆留在身后。'},
+ ]},
+{loc:'arkham',w:8,text:'午夜的风里有笑声。极轻，极远，像有人隔着九层墙壁在哼一支童谣。',
+ choices:[
+  {t:'驻足倾听',tip:'精神 -8',fx:s=>{s.san=clamp(s.san-8);return '那笑声里有种熟悉的孤独。你听了很久，直到意识到自己在跟着哼。你猛地转身逃走了，童谣在你脑子里住了一整夜。';}},
+  {t:'捂住耳朵快走',tip:'精神 -2',fx:s=>{s.san=clamp(s.san-2);return '你一路小跑下山坡。笑声追了你半个街区，最终还是被城市噪音吞没。';}},
+ ]},
+{loc:'arkham',w:6,when:s=>s.justice>=30||s.crime>=30,text:'押送车队停在路边换胎——车厢里那个人隔着铁网看着你，绿色的问号爬满他的囚服。',
+ choices:[
+  {t:'帮警卫警戒',tip:'正义 +6，可能受伤',fx:s=>{s.justice=Math.min(100,s.justice+6);s.hp=clamp(s.hp-8);return '你抄起撬棍站在车旁，逼退了两个想凑近的"路人"。谜语人隔着铁网盯着你："有趣……你现在还没有谜底，但你会有的。"你宁可没有。';}},
+  {t:'趁乱从警车里顺走点东西',tip:'犯罪 +6，金钱 +60',fx:s=>{s.crime=Math.min(100,s.crime+6);s.money+=60;s.san=clamp(s.san-5);return '一只证物袋——里面的怀表能卖六十块。谜语人在车厢里目送你离开，轻轻鼓掌："欺诈的艺术始于小事。欢迎入学。"你跑得飞快，掌声却跟了你一路。';}},
+  {t:'绕道而行',fx:()=>'换胎的是两个警察和一个疯子。这道数学题怎么看都危险。你走了。'},
+ ]},
+
+/* ---- 冰山酒吧 ---- */
+{loc:'iceberg',w:12,text:'冰山酒吧里烟雾缭绕，赌桌上的骰子声和钢琴声缠在一起。侍者们的领结都烫得笔直——企鹅人的规矩。',
+ choices:[
+  {t:'坐上赌桌，押 $20',fx:s=>{if(s.money<20)return '你连最低注都凑不齐。荷官的微笑很职业，你的离开很仓促。';
+    if(roll(.48)){s.money+=30;s.san=clamp(s.san+3);return '骰子停下的那一刻，整桌人哀嚎，只有你笑着收钱。+$30。手气好的夜晚，连烟雾都是甜的。';}
+    s.money-=20;s.san=clamp(s.san-2);return '三把，输光。你盯着骰子看了很久——它们没有问题，有问题的是人生。-$20。';}},
+  {t:'只要一杯酒',tip:'金钱 -8，精神 +6',fx:s=>{if(s.money<8)return '你数了数口袋，转身去喝了自来水。酒吧的钢琴声隔着门板都那么贵。';
+    s.money-=8;s.san=clamp(s.san+6);return '钢琴师弹了一支老歌。你在烟雾里想通了某件纠结很久的事。有些酒钱买的是清醒。';}},
+ ]},
+{loc:'iceberg',w:10,when:s=>s.crime>=15,text:'角落的卡座里，企鹅人夹着烟，伞尖点地："听说你手脚还行。小活儿——去码头帮我取个包裹。别打开。"',
+ choices:[
+  {t:'接下委托',tip:'犯罪 +6，金钱 +80',fx:s=>{s.crime=Math.min(100,s.crime+6);s.money+=80;return '包裹在指定储物柜里，你全程没打开——这是活下来的规矩。八十块钱和一个新靠山。企鹅人弹了弹烟灰："嘴严。哥谭没有秘密，只有还没价卖的消息。"';}},
+  {t:'"我干不了这个。"',fx:s=>{s.san=clamp(s.san-2);return '企鹅人眯起眼打量你三秒，笑了："没关系。这城里总有人干得了。"伞尖点地的声音送你出门，像倒计时。';}},
+ ]},
+{loc:'iceberg',w:8,text:'吧台角落的线人磨着手指："这年头，消息也是明码标价的。$10，童叟无欺。"',
+ choices:[
+  {t:'买一条消息',tip:'金钱 -10，获取线索',fx:s=>{if(s.money<10)return '你连消息都买不起了。线人同情地看着你，破例白送一句："回家睡觉，别出门。今晚风紧。"';
+    s.money-=10;return rnd([
+      '线人压低声音："蝙蝠侠最近在查码头那批货。风声紧，别去凑热闹。"',
+      '"小丑上周从阿卡姆"出院"了。"线人说完就往角落缩，"这话你可别说是我讲的。"',
+      '"罗宾这礼拜一直在公园街一带晃。"线人瞥你一眼，"听说他在找帮手，条件挺奇怪的——要的是心。"',
+      '"双面人在囤武器。"线人吐了个烟圈，"哈维那一半和哈罗德那一半，都囤。']);}},
+  {t:'摇头走开',fx:()=>'消息这种东西，知道得越多，死得越快。你摇头离开，烟雾在身后合拢。'},
+ ]},
+{loc:'iceberg',w:6,text:'两个醉汉撞翻了桌子，酒瓶碎了一地。其中一个指着另一个的鼻子："你再说一遍？！"',
+ choices:[
+  {t:'站到两人中间',tip:'正义 +2，可能受伤',fx:s=>{s.justice=Math.min(100,s.justice+2);if(roll(.3)){s.hp=clamp(s.hp-8);return '一记误伤的拳头砸在你眼眶上。但 bartender 顺势把两人架开了。你顶着乌眼圈喝完那杯酒，像一枚勋章。';}return '你的一句"给个面子"让局势降了温。企鹅人的地盘上，讲理的人不多，你算一个。';}},
+  {t:'加入混战',tip:'犯罪 +3，生命 -10',fx:s=>{s.crime=Math.min(100,s.crime+3);s.hp=clamp(s.hp-10);return '你抡起椅子加入了战局。为什么？不知道。但在哥谭，有时候拳头先于理由到场。';}},
+  {t:'喝完就走',fx:()=>'你慢条斯理地喝完杯中酒，从侧门离开。背后传来桌椅碎裂声，像这座城市的日常配乐。'},
+ ]},
+
+/* ---- 搭档事件（不限地点） ---- */
+{loc:'any',w:9,when:s=>s.partner==='robin',text:'罗宾在钟楼顶等你，披风在夜风里猎猎作响："准备好了吗？今晚公园街不太平。"',
+ choices:[
+  {t:'并肩夜巡',tip:'正义 +6，精神 +3',fx:s=>{s.justice=Math.min(100,s.justice+6);s.san=clamp(s.san+3);
+    return '你们从钟楼荡进夜色，制止了三起抢劫，把两个迷路的孩子送回了家。落脚时罗宾忽然说："知道吗，蝙蝠侠说过——哥谭不是被蝙蝠侠拯救的，是被每一个不肯闭眼的人。"你在屋顶坐了很久。';}},
+  {t:'让他教你格斗',tip:'生命 -8，精神 +4',fx:s=>{s.hp=clamp(s.hp-8);s.san=clamp(s.san+4);return '两个小时的摔打训练，你数不清自己背朝地多少次。但最后你成功把他摔了一次——他说那是"教学配合"。你已经比上周的自己强了。';}},
+ ]},
+{loc:'any',w:9,when:s=>s.partner==='joker',text:'小丑把一张扑克牌立在你面前——黑桃J。"今晚有个有趣的节目，"他咧开嘴，"保证让你终生难忘。"',
+ choices:[
+  {t:'跟着他走',tip:'犯罪 +5，金钱 +60，精神 -5',fx:s=>{s.crime=Math.min(100,s.crime+5);s.money+=60;s.san=clamp(s.san-5);return '所谓的"节目"是给一家不肯交保护费的诊所"上上课"。你负责望风，看着诊所的灯一层层熄灭。小丑在旁边笑得直不起腰。你分不清更让你难受的是那笑声，还是你居然没跑。';}},
+  {t:'"不了，今晚我想休息。"',fx:s=>{s.san=clamp(s.san+2);return '小丑歪着头看了你足足五秒——那五秒比任何刀都长。然后他笑了："休息？好啊，艺术家也需要假期嘛。"你走出三步，发现后背全湿了。';}},
+ ]},
+
+];
+
+/* ================= 通勤意外事件（上班路上触发） ================= */
+const COMMUTE = [
+{text:'地铁车厢里，一个瘦削的男人正贴着一位打瞌睡的上班族，两根手指已经探进了对方的外套口袋。',
+ choices:[
+  {t:'一把攪住他的手腕',tip:'正义 +3',fx:s=>{s.justice=Math.min(100,s.justice+3);
+    if(roll(.3)){s.hp=clamp(s.hp-4);return '扒手挣扎时在你手上搔了几道血印，但全车厢的人都看着他。到站时他被两个便衣带走了——原来车厢里一直有便衣。';}
+    return '他手腕一软，赃物掉了一地。失主惊醒后连声道谢，周围的乘客默默给你让出一个座位。';}},
+  {t:'装没看见，看向窗外',tip:'精神 -2',fx:s=>{s.san=clamp(s.san-2);return '你数着隧道里的灯。口袋没被摸走什么——这次被摸走的是别的。';}},
+  {t:'用身子挡住失主，事后找扒手“分账”',tip:'犯罪 +2，金钱 +15',fx:s=>{s.crime=Math.min(100,s.crime+2);s.money+=15;return '下一站你“不小心”撞散了他们的队形，扒手心领神会地塞给你十五块。这算什么？行业互助。';}},
+ ]},
+{text:'上班高峰的人行道上，一位老人被自行车撞倒，骑车的少年吓得不知所措。围观的人越来越多，没人上前。',
+ choices:[
+  {t:'扶起老人，替少年解围',tip:'正义 +3，精神 +2',fx:s=>{s.justice=Math.min(100,s.justice+3);s.san=clamp(s.san+2);return '你扶老人到路边坐好，让少年去打急救电话。老人其实没大碍，握着你的手说：“现在的孩子，也有好的。”你迟到了十分钟，但心情很好。';}},
+  {t:'绕开人群继续走',fx:()=>'你随着人流走过。回头时，人群像一圈安静的栅栏围着老人。'},
+ ]},
+{text:'韦恩企业的电梯里只有你和一位高大的黑发男人。他看着楼层显示屏，忽然开口：“你看起来很累。”',
+ choices:[
+  {t:'“这座城市让人累。”',tip:'精神 +3',fx:s=>{s.san=clamp(s.san+3);return '他点点头：“但值得。”电梯到了，他走出去时你才反应过来——那是顶层办公的布鲁斯·韦恩。他记住了你的脸。说不清是好事还是麻烦。';}},
+  {t:'“惯了。您去几层？”',fx:()=>'“顶层。”他说。之后你花了三天才敢跟同事确认，那就是韦恩本人。'},
+ ]},
+{when:s=>s.crime>=20,text:'地铁口有警察设卡临检。“例行检查。”警官的目光在你身上停留得比别人久一点。',
+ choices:[
+  {t:'配合检查',fx:s=>{if(s.crime>=40&&s.money>=20){s.money-=20;return '你口袋里那点来路不明的东西让他们罚了二十块“手续费”。法治社会。';}
+    return '他们翻了你的包，什么也没找到。“走吧。”你走进地铁，后背发麻。';}},
+  {t:'掉头绕路，宁可迟到',tip:'精神 -2',fx:s=>{s.san=clamp(s.san-2);return '你多绕了三个街区，迟到扣了全勤。但口袋里的东西还在。这笔账你自己算。';}},
+ ]},
+{text:'办公室的灯亮到很晚，主管拍拍你的桌子：“项目赶工期，加班费翻倍。你留吗？”',
+ choices:[
+  {t:'留下来加班',tip:'金钱 +15，生命 -3，精神 -2',fx:s=>{s.money+=15;s.hp=clamp(s.hp-3);s.san=clamp(s.san-2);return '凌晨的写字楼里只剩你和一名保安。加班费到手。走出大楼时，远处天空亮起蝙蝠信号——有人需要救了，但那是别人的班。今晚是你的夜。';}},
+  {t:'到点就走，生活是自己的',tip:'精神 +2',fx:s=>{s.san=clamp(s.san+2);return '你准点打卡走人，在地铁上还抢到了座位，晚霞很好看。在哥谭，这算赢。';}},
+ ]},
+{text:'街头电视墙突然切出紧急新闻：“注意——小丑疑似再次出现在市中心，请市民立即疏散！”',
+ choices:[
+  {t:'帮身边的人一起撤离',tip:'正义 +2，生命 -3',fx:s=>{s.justice=Math.min(100,s.justice+2);s.hp=clamp(s.hp-3);return '你拽着两个吓软了腿的路人冲进地铁站。头顶有什么东西炸开，紫色烟雾漫过街区。你活下来了，还多救了两个。这段通勤，够吹一年。';}},
+  {t:'撒腿就跑，谁也别管',tip:'精神 -4',fx:s=>{s.san=clamp(s.san-4);return '你在人潮里跑得比谁都快。身后有笑声——不知是广播里的，还是你脑子里的。';}},
+ ]},
+];
+
+/* ================= 里程碑事件（特殊队列） ================= */
+const SPECIALS = [
+{id:'sp_robin_sight',when:s=>s.justice>=20&&!s.metRobin,
+ text:'你把最后一名劫匪押向警局方向时，抬头瞥见对街屋顶有一道红绿相间的身影一闪而过——像在向你点头。',
+ choices:[
+  {t:'向那个方向挥了挥手',fx:s=>{s.metRobin=true;s.san=clamp(s.san+4);return '影子顿了顿，然后——真的挥手回应了，随后消失在楼宇之间。你的心脏跳得像擂鼓。罗宾，夜翼之前的那位少年奇迹，注意到你了。';}},
+  {t:'低头继续走路，别做梦',fx:s=>{s.metRobin=true;return '你告诉自己那是错觉。但回家的路上，你一直在笑。错觉不会让人心跳这么快。';}},
+ ]},
+{id:'sp_robin_join',when:s=>s.justice>=35&&s.metRobin&&s.partner==='none',
+ text:'天台。红披风的少年倒挂在水塔边缘，面罩下的眼睛盯着你："我看过你做的事。你最大的武器不是拳头——是你不肯闭眼。要不要一起？"',
+ choices:[
+  {t:'"我加入。"',tip:'成为罗宾的搭档',fx:s=>{s.partner='robin';s.justice=Math.min(100,s.justice+5);return '他翻身落地，伸出手："罗宾。规矩只有一条——不杀。"你握住那只手套。从今夜起，哥谭的屋顶上多了一个影子。';}},
+  {t:'"我有自己的生活。"',fx:s=>{s.san=clamp(s.san-2);return '少年耸耸肩："理解。不过——"他抛给你一个哨子，"需要帮忙就吹。哥谭人应该互相帮忙，对吧？"他消失在夜色里。你把哨子挂在了钥匙串上。';}},
+ ]},
+{id:'sp_batman',when:s=>s.justice>=60&&!s.metBatman,
+ text:'你在废弃车库处理伤口时，身后的黑暗里传来一个声音，低沉得像从地底渗出："你身上有七处旧伤，全是替人挡的。为什么？"',
+ choices:[
+  {t:'"因为总得有人做点什么。"',tip:'蝙蝠侠认可了你',fx:s=>{s.metBatman=true;s.san=clamp(s.san+6);s.justice=Math.min(100,s.justice+4);return '黑暗里沉默了很久。然后一枚黑色的信号弹落在你脚边。"下次遇到解决不了的事，点亮它。"他消失在车库上方的破洞里。蝙蝠侠认识你了。';}},
+  {t:'"因为我想出名，怎么了？"',fx:s=>{s.metBatman=true;return '黑暗里传来一声几不可闻的嗤笑。"诚实。"一个东西滚到你脚边——绷带卷。"先把血止住。出名这条路，你会死得很快。"他走后你才发现，绷带底下还压着一张哥谭地下势力分布图。';}},
+ ]},
+{id:'sp_joker_meet',when:s=>s.crime>=55&&!s.metJoker,
+ text:'停车场。紫色的身影从车顶一跃而下，鞠了个躬："听说这阵子有个新面孔很勤奋？我欣赏勤奋。"他的笑像一道裂缝。',
+ choices:[
+  {t:'放声大笑回应',tip:'小丑欣赏你',fx:s=>{s.metJoker=true;s.san=clamp(s.san-8);s.crime=Math.min(100,s.crime+3);return '你笑了。不知是恐惧还是别的什么，反正你真的笑出了声。小丑抱着你的肩膀："哈哈哈！看见没？看见没？这个人懂！来，跟我干，保证你每天都笑得像今天一样——真心实意。"';}},
+  {t:'"我跟你不是一路人。"',fx:s=>{s.metJoker=true;s.san=clamp(s.san-5);return '裂缝一样的笑凝固了一瞬。"不是一路人……"他慢慢鼓掌，"你知道有多少人对我说过这句话吗？"他凑近你耳边，"他们后来都改口了。慢慢来。"他消失后，你在原地站了十分钟才想起来自己要去哪。';}},
+ ]},
+{id:'sp_gordon',when:s=>s.crime>=20&&!s.gordon,
+ text:'戈登警探在街角拦下你，出示证件的动作慢条斯理："最近几起案子，证人描述里都有你。我不知道该把你写进哪一栏——受害者，还是嫌疑人。"',
+ choices:[
+  {t:'"写哪栏，您决定。"',fx:s=>{s.gordon=true;return '戈登盯着你看了很久，收起证件："我选择相信人可以改。别让我后悔。"他走进警局时背影疲惫。传说这城里一半的案子是他熬夜办的。';}},
+  {t:'"那你倒是抓我啊。"',fx:s=>{s.gordon=true;s.crime=Math.min(100,s.crime+2);return '戈登没动，只是记下了一行什么。"总有一天会有人来抓你，"他合上本子，"但愿到那天，你已经不在名单上了。"他走后你才发现手心是湿的。';}},
+ ]},
+{id:'sp_bat_warning',when:s=>s.crime>=40&&!s.batWarn,
+ text:'回家路上，路灯忽明忽暗。然后他就在那里了——像从阴影里长出来的。蝙蝠侠。"最后一站，"那个声音说，"回头，或者进去。你选。"',
+ choices:[
+  {t:'"……我回头。"',tip:'犯罪 -15',fx:s=>{s.crime=Math.max(0,s.crime-15);s.batWarn=true;return '你把偷来的东西一件件还了回去，连那块怀表。退出的过程像揭一层皮。但那双白色目镜在黑暗里看着你时，你发现自己竟然松了口气。';}},
+  {t:'挥拳',tip:'生命 -25，犯罪 +5',fx:s=>{s.hp=clamp(s.hp-25);s.crime=Math.min(100,s.crime+5);s.batWarn=true;return '你甚至没看清他的动作。等你回过神来，自己躺在地上，天空是湿漉漉的黑色。"下次不会这么温柔。"风声告诉你他走了。你在原地躺了很久，数自己的肋骨。';}},
+ ]},
+{id:'sp_bat_hunt',when:s=>s.crime>=50&&s.batWarn,
+ text:'黑影从天而降堵住去路。蝙蝠侠没有说话，只是扔下三个东西：一条绳子、一张保释申请表、一张阿卡姆的床位预订单。"最后一个机会。"',
+ choices:[
+  {t:'接住绳子',tip:'犯罪 -10，最后的机会',fx:s=>{s.crime=Math.max(0,s.crime-10);return '他把你吊上了钟楼，没有再说什么。但那张阿卡姆预订单被风卷走时，你追了半个屋顶。有些东西结束了——你终于追上了它。';}},
+  {t:'转身就逃',fx:s=>{if(roll(.5)){s.san=clamp(s.san-6);return '你钻进下水道，在黑暗里屏住呼吸听头顶的脚步声。他放过了你——今晚。但你知道，那只是因为他还在等你"值得出手"的那天。';}
+    s.hp=clamp(s.hp-20);return '他掐灭了你所有的逃跑路线，只打了一下——正正好好把你打晕。你醒来时在医院，床头有张纸条："医院比你应得的仁慈。最后一次。"';}},
+ ]},
+{id:'sp_joker_job',when:s=>s.crime>=70&&s.partner==='joker',
+ text:'小丑把哥谭第一国民银行的平面图铺开，用口红画了个大大的笑脸："午夜。金库。我和你。"他递给你一个小盒子，"这个？哈哈，这是给警察叔叔的惊喜。"',
+ choices:[
+  {t:'参与史上最大劫案',tip:'犯罪 +12，金钱 +300',fx:s=>{s.crime=Math.min(100,s.crime+12);s.money+=300;s.san=clamp(s.san-8);return '午夜的大理石大厅里，警报声和笑声齐飞。你抱着钱袋冲出侧门时，身后腾起的紫色烟雾把整条街染成了狂欢节。三百块现金，和一晚上一辈子洗不掉的笑。小丑在楼顶朝你举杯："干杯，合伙人！"';}},
+  {t:'把小盒子偷偷扔掉，只拿钱走人',fx:s=>{s.crime=Math.min(100,s.crime+8);s.money+=200;s.san=clamp(s.san-3);return '你借口"布置外围"把盒子沉进了河里。劫案照样成功——只是少了那朵紫色的烟花。分账时小丑盯着你看了很久，忽然笑了："嗯……浪漫的人。"他什么也没说。但你知道他什么都知道了。';}},
+ ]},
+{id:'sp_two_face',when:s=>s.justice>=75&&(s.partner==='robin'||s.partner==='batman'),
+ text:'紧急频道炸响：双面人劫持了市政厅二十名人质，硬币在他指间翻飞，"人头，还是钱？让命运决定！"你的搭档看向你："一起上？"',
+ choices:[
+  {t:'正面突入，吸引火力',tip:'正义 +12，生命 -10',fx:s=>{s.justice=Math.min(100,s.justice+12);s.hp=clamp(s.hp-10);s.san=clamp(s.san-4);return '你撞碎侧门大喊的那一刻，双面人的枪口转向了你——这正是搭档需要的四秒。烟雾、绳索、玻璃。人质疏散成功，双面人被自己那枚硬币背叛了：正面。你肩膀中了一枪，但二十个家庭今晚完整。';}},
+  {t:'迂回切断他的退路',tip:'正义 +12，精神 -5',fx:s=>{s.justice=Math.min(100,s.justice+12);s.san=clamp(s.san-5);return '你从地下车库切断了双面人的车。他堵在走廊里时，身后的暗门已经锁死。被捕时他盯着你："另一面会记得你。"你会记得这晚很久——不是因为胜利，是那枚硬币落地时清脆的声音。';}},
+ ]},
+];
+
+/* ================= 结局 ================= */
+function checkEnd(){
+  if(S.hp<=0)return {t:'卒于哥谭 · 一具无名的尸体',x:'你在第 '+day()+' 个夜晚倒下了。\n\n救护车来得很慢——在哥谭这很正常。\n\n法医的报告上写着"街头斗殴"，档案编号排在一千多个同类后面。\n\n这座城市没有记住你的名字。但某个屋顶上，有人为你多站了一整夜。\n\n哥谭继续运转。它一直如此。',cls:'bad'};
+  if(S.san<=0)return {t:'第 10001 位住户 · 阿卡姆疯人院',x:'白色病房。白色走廊。白色的灯。\n\n护士说你总在半夜笑，笑声"不太像人"。\n\n隔壁房间的男人隔着墙跟你聊天，他说自己是谜语人，还说这座城市本身就是个谜语——而谜底是一面镜子。\n\n你开始觉得他说的有道理。\n\n这正是住进来的原因，也是走不出去的原因。',cls:'bad'};
+  if(S.justice>=90)return {t:'传说 · 午夜骑士的影子',x:'报纸头版：《哥谭的新守护者？》\n\n照片很糊——拍到你正把一个孩子从火场里抱出来。\n\n蝙蝠侠没有否认。上周的夜巡结束时，他把信号灯的备用开关交给了你："总有一天我会慢下来。这座城市需要不止一只蝙蝠。"\n\n你依然付着房租，依然挤地铁。但每当夜幕降临，哥谭的犯罪分子抬头时——\n\n会看到两个影子。',cls:'good'};
+  if(S.crime>=90)return {t:(S.partner==='joker'?'王座 · 小丑王的继承人':'深渊 · 哥谭的新贵'),x:(S.partner==='joker'?
+    '紫色的旗帜插满了哥谭的地下世界。\n\n小丑把最后一枚筹码推给你："好戏要有人续场，我的朋友。"\n\n警方档案里你的代号是"笑脸"，悬赏金额排在通缉榜前五。\n\n有时半夜你会想起自己曾经也只是个普通人。\n\n然后你笑了。真心实意地笑了。这正是最可怕的地方。':
+    '你成了哥谭地下世界不可忽视的名字。\n\n法尔科内对你客气，企鹅人跟你合伙，连双面人的硬币都会为你停一秒。\n\n但档案柜里，你的文件夹越来越厚——最后一页的批注只有一行：\n\n"由蝙蝠侠亲自处理。优先级：高。"\n\n王座很舒服。王座上方，永远悬着一对翅膀。') ,cls:'bad'};
+  if(day()>=46){
+    if(S.justice>S.crime+15)return {t:'平凡之光',x:'你没有成为传说。\n\n但你楼下的老人记得你每周帮忙搬菜，收容所的孩子记得你的名字，便利店老板娘记得你那晚扑向劫匪的背影。\n\n第 '+day()+' 天，你依然普通，依然活着。\n\n在哥谭，这是了不起的成就。\n\n某个雨夜，屋顶上有一道影子朝你点了点头。你认得那轮廓。它也认得你。',cls:'good'};
+    if(S.crime>S.justice+15)return {t:'小恶人的黄昏',x:'你没有登顶，也没有翻身。\n\n警察档案里你是个"待观察对象"，帮派眼里你是个"还行的跟班"。\n\n第 '+day()+' 天，你在酒馆里数着不多的钱，听着别人的传说——蝙蝠侠的、罗宾的、小丑的。\n\n没有一个是你的。\n\n哥谭给了你一席之地，仅此而已。',cls:'bad'};
+    return {t:'普通人 · 大结局',x:'第 '+day()+' 天，你盘点了自己：\n\n生命值 '+S.hp+'，精神值 '+S.san+'，正义 '+S.justice+'，犯罪 '+S.crime+'，口袋里 $'+S.money+'。\n\n不伟岸，不堕落。在善与恶的天平上，你停在中间。\n\n哥谭最大的奇迹，也许就是让普通人活成了普通人。\n\n明天还要上班。睡吧。',cls:''};
+  }
+  return null;
+}
+
+/* ================= 引擎 ================= */
+function day(){return Math.floor(turn/4)+1;}
+
+function showSpecial(sp){
+  document.getElementById('loc-tag').textContent='★ 关键时刻';
+  document.getElementById('story').textContent=sp.text;
+  renderChoices(sp.choices.filter(c=>!c.when||c.when(S)));
+}
+
+function showEvent(ev,locKey){
+  document.getElementById('loc-tag').textContent=LOCS[locKey].name;
+  document.getElementById('story').textContent=ev.text;
+  renderChoices(ev.choices.filter(c=>!c.when||c.when(S)));
+}
+
+function renderChoices(choices){
+  const box=document.getElementById('choices');box.innerHTML='';
+  choices.forEach(c=>{
+    const b=document.createElement('button');b.className='choice';
+    b.innerHTML=c.t+(c.tip?'<small>'+c.tip+'</small>':'');
+    b.onclick=()=>applyChoice(c);
+    box.appendChild(b);
+  });
+}
+
+function applyChoice(c){
+  const result=c.fx(S);
+  addLog(c.t,'hl');
+  addLog(result);
+  turn++;
+  // 房租
+  if(turn%12===0){
+    if(S.money>=30){S.money-=30;addLog('房东来收租，$30。你付了钱，日子还得过。');}
+    else{S.hp=clamp(S.hp-10);S.san=clamp(S.san-5);addLog('房东上门，你拿不出房租，被骂了一下午。生命 -10，精神 -5。','bad');}
+  }
+  render();
+  // 结局检查
+  const end=checkEnd();
+  if(end){showEnding(end);return;}
+  // 里程碑检查
+  pendingSpecial=null;
+  for(const sp of SPECIALS){if(sp.when(S)){pendingSpecial=sp;break;}}
+  promptNext();
+}
+
+function pickEvent(locKey){
+  const pool=EVENTS.filter(e=>{
+    if(e.loc!=='any'&&e.loc!==locKey)return false;
+    if(e.loc==='any'&&locKey==='home')return false; // 搭档事件不出现在家
+    if(e.when&&!e.when(S))return false;
+    return true;
+  });
+  let total=0;pool.forEach(e=>total+=e.w);
+  let r=Math.random()*total;
+  for(const e of pool){r-=e.w;if(r<=0)return e;}
+  return pool[0];
+}
+
+function promptNext(){
+  if(gameOver)return;
+  render();
+  if(pendingSpecial){
+    const sp=pendingSpecial;pendingSpecial=null;
+    // 从 SPECIALS 移除已触发的一次性事件（保留when不满足的自然过滤）
+    addLog('★ 事情的走向发生了变化……','hl');
+    showSpecial(sp);
+    return;
+  }
+  // 回家时自动展示家的选项；其他地点先选地点
+  showLocationPicker();
+}
+
+const LOC_KEYS=['home','downtown','parkrow','docks','wayne','arkham','iceberg'];
+function showLocationPicker(){
+  document.getElementById('loc-tag').textContent='哥谭 · 夜晚 '+day();
+  document.getElementById('story').textContent='今晚去哪儿？这座城市在每个街角都为你准备了一出戏。';
+  const box=document.getElementById('choices');box.innerHTML='';
+  // 上班路线：普通人也可以只过日子
+  if(S.hasJob){
+    const wb=document.createElement('button');wb.className='choice';
+    wb.innerHTML='去韦恩企业上班打卡<small>稳定收入 +$25，通勤路上可能触发意外</small>';
+    wb.onclick=workDay;
+    box.appendChild(wb);
+  } else {
+    const jb=document.createElement('button');jb.className='choice';
+    jb.innerHTML='去职业介绍所碰碰运气<small>也许能找到一份普通工作</small>';
+    jb.onclick=tryJob;
+    box.appendChild(jb);
+  }
+  LOC_KEYS.forEach(k=>{
+    const b=document.createElement('button');b.className='choice';
+    b.innerHTML='前往'+LOCS[k].name;
+    b.onclick=()=>{const ev=pickEvent(k);showEvent(ev,k);};
+    box.appendChild(b);
+  });
+}
+
+/* ---- 上班打卡：稳定收入 + 随机通勤意外 ---- */
+function workDay(){
+  S.money+=25;
+  addLog('你去韦恩企业打了卡，干了整整一天的活。+$25。','good');
+  turn++;
+  render();
+  const end=checkEnd();
+  if(end){showEnding(end);return;}
+  if(roll(.45)){
+    const pool=COMMUTE.filter(e=>!e.when||e.when(S));
+    showEvent(rnd(pool),'commute');
+  } else {
+    promptNext();
+  }
+}
+
+/* ---- 没工作时：找普通工作 ---- */
+function tryJob(){
+  turn++;
+  if(roll(.5)){
+    S.hasJob=true;
+    addLog('职业介绍所帮你登记了一份韦恩企业后勤部的工作。从今往后，你可以打卡上班了——每次 +$25。','good');
+  } else {
+    addLog('介绍所里挤满了人，今天没有适合你的活。哥谭的失业率比犯罪率还稳定。');
+  }
+  render();
+  const end=checkEnd();
+  if(end){showEnding(end);return;}
+  promptNext();
+}
+
+function showEnding(end){
+  gameOver=true;
+  document.getElementById('game').style.display='none';
+  document.getElementById('ending').style.display='block';
+  document.getElementById('end-title').textContent=end.t;
+  document.getElementById('end-text').textContent=end.x;
+  document.getElementById('end-stats').textContent=
+    '最终数据 —— 生命 '+S.hp+' · 精神 '+S.san+' · 正义 '+S.justice+' · 犯罪 '+S.crime+' · 金币 $'+S.money+' · 身份：'+
+    ({none:'普通市民',robin:'罗宾的搭档',batman:'蝙蝠侠盟友',joker:'小丑的帮凶'})[S.partner]+' · 存活 '+day()+' 天';
+}
+
+function startGame(){
+  S=newState();turn=0;gameOver=false;pendingSpecial=null;
+  document.getElementById('title-screen').style.display='none';
+  document.getElementById('game').style.display='block';
+  document.getElementById('log').innerHTML='';
+  addLog('你搬进这间旧公寓的第三个月，终于认清了一个事实：在哥谭，"不管闲事"是一种需要练习才能掌握的技能。');
+  promptNext();
+}
+</script>
+</body>
+</html>

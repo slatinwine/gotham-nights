@@ -113,6 +113,15 @@
   .mode-note{color:var(--dim);font-size:12px;margin-top:16px;letter-spacing:1px}
   #visitor-count{margin-top:22px;color:var(--dim);font-size:12px;letter-spacing:2px}
   #visitor-count b{color:var(--gold);font-weight:normal;font-size:15px;margin:0 2px}
+  #mirror-hint{display:none;margin-top:12px;color:var(--dim);font-size:12px;letter-spacing:1px;border:1px dashed var(--line);border-radius:6px;padding:8px 14px}
+  #mirror-hint a{color:var(--gold);text-decoration:none}
+  #mirror-modal{display:none;position:fixed;inset:0;background:rgba(5,7,11,.82);z-index:50;align-items:center;justify-content:center}
+  #mirror-modal .box{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:30px 34px;max-width:420px;text-align:center}
+  #mirror-modal h3{color:var(--gold);letter-spacing:3px;margin:0 0 14px;font-size:17px}
+  #mirror-modal p{color:var(--ink);font-size:13px;line-height:1.9;margin:0 0 22px}
+  #mirror-modal .row{display:flex;gap:12px;justify-content:center}
+  #mirror-modal a.btn{display:inline-block;text-decoration:none}
+  #mirror-modal button.btn2{margin-left:0}
 </style>
 </head>
 <body>
@@ -135,6 +144,21 @@
     <button class="btn2" onclick="startGame('classic')">经典模式</button>
     <div class="mode-note">AI 模式：纯文本驱动——读主持人的叙述，直接写下你的行动 | 经典模式：离线可玩的固定剧本</div>
     <div id="visitor-count"></div>
+    <div id="mirror-hint"></div>
+  </div>
+
+  <!-- 镜像站提示弹窗 -->
+  <div id="mirror-modal">
+    <div class="box">
+      <h3>这里是镜像站</h3>
+      <p>你正从 GitHub Pages 镜像访问《哥谭夜行》。<br>
+      云端 AI 主持人按域名鉴权，镜像站只能玩<b style="color:var(--gold)">经典模式</b>（离线固定剧本）。<br>
+      要体验 AI 实时主持剧情与自由输入，请前往官方版：</p>
+      <div class="row">
+        <a class="btn" id="mirror-goto" href="https://gotham-nights.app.workbuddy.host/?sharecode=366KQX676V" target="_blank" rel="noopener">前往官方版 ↗</a>
+        <button class="btn2" onclick="startGameClassicAnyway()">经典模式继续</button>
+      </div>
+    </div>
   </div>
 
   <!-- 游戏 -->
@@ -547,6 +571,25 @@ function checkEnd(){
 }
 
 /* ================= 首页访客统计（IP 去重） ================= */
+const OFFICIAL_ORIGIN='https://gotham-nights.app.workbuddy.host';
+function isOfficialOrigin(){
+  try{return location.origin===OFFICIAL_ORIGIN;}catch(e){return true;}
+}
+// 非官方域名（如 GitHub Pages 镜像）：首页常驻提示
+(function(){
+  if(isOfficialOrigin())return;
+  const h=document.getElementById('mirror-hint');
+  if(!h)return;
+  h.style.display='block';
+  h.innerHTML='当前为 GitHub Pages 镜像站：AI 主持人模式需在<a href="'+OFFICIAL_ORIGIN+'/?sharecode=366KQX676V" target="_blank" rel="noopener">官方版</a>游玩，这里仅支持经典模式';
+})();
+let MIRROR_ACK=false;
+function startGameClassicAnyway(){
+  MIRROR_ACK=true;
+  document.getElementById('mirror-modal').style.display='none';
+  startGame('classic');
+}
+
 async function getVisitorIp(){
   const apis=[
     {u:'https://api.ipify.org?format=json',j:d=>d.ip},
@@ -901,6 +944,11 @@ function showEnding(end){
 }
 
 function startGame(mode){
+  // 镜像站上 AI 模式调不通云端（网关按域名鉴权），先弹提示引导去官方版
+  if(mode==='ai'&&!MIRROR_ACK&&!isOfficialOrigin()){
+    document.getElementById('mirror-modal').style.display='flex';
+    return;
+  }
   MODE=mode||'classic';
   S=newState();turn=0;gameOver=false;pendingSpecial=null;HISTORY=[];
   document.getElementById('title-screen').style.display='none';

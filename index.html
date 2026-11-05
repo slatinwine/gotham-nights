@@ -660,7 +660,30 @@ async function aiTurn(actionText){
         answer=await aiStream(model,[{role:'system',content:aiSystemPrompt()},...HISTORY],false);
       }else{throw e;}
     }
-    const data=parseAiJson(answer);
+    let data=null;
+    try{
+      data=parseAiJson(answer);
+    }catch(pe){
+      // 第一次解析失败：追加强指令，重试一次
+      try{
+        const retryMsgs=[
+          {role:'system',content:aiSystemPrompt()+'\n\n【重要】你上一轮的回复不是合法 JSON。这次必须只输出一个 JSON 对象（字段：story、effects、flags），以 { 开头、以 } 结尾，不要任何其他文字。'},
+          ...HISTORY,
+          {role:'user',content:'（请严格按 JSON 格式重写你上一段回复，内容可以保留）'},
+        ];
+        answer=await aiStream(model,retryMsgs,true);
+        data=parseAiJson(answer);
+      }catch(pe2){
+        // 兜底：把原始文本直接当剧情用——文本驱动模式下叙述本身就是合格的输出
+        const raw=(answer||'').replace(/^```(json)?/i,'').replace(/```$/,'').trim();
+        if(raw.length>=30){
+          data={story:raw,effects:{},flags:{}};
+          addLog('主持人这轮没按暗号来（格式走样），叙述照常，数值无变化。','hl');
+        }else{
+          throw pe2; // 连叙述都没有，才交给外层真正降级
+        }
+      }
+    }
     HISTORY.push({role:'assistant',content:(data&&data.story)||''});
     applyAiResult(data);
   }catch(e){

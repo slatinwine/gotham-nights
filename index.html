@@ -3,6 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script>
+  // GitHub Pages 镜像无法直连云端 AI（网关按 Origin 白名单拦截），自动跳转官方版；本地/其他域名不受影响
+  if (location.hostname === "slatinwine.github.io") {
+    location.replace("https://gotham-nights.app.workbuddy.host/?sharecode=366KQX676V");
+  }
+</script>
 <title>哥谭夜行 · Gotham Nights</title>
 <style>
   :root{
@@ -575,9 +581,12 @@ const OFFICIAL_ORIGIN='https://gotham-nights.app.workbuddy.host';
 function isOfficialOrigin(){
   try{return location.origin===OFFICIAL_ORIGIN;}catch(e){return true;}
 }
-// 非官方域名（如 GitHub Pages 镜像）：首页常驻提示
+// 仅 GitHub Pages 等镜像域名才提示（本地预览/官方版不受影响；Pages 上方头部跳转脚本会先接管）
+function isMirrorHost(){
+  try{return /(^|\.)github\.io$/.test(location.hostname);}catch(e){return false;}
+}
 (function(){
-  if(isOfficialOrigin())return;
+  if(!isMirrorHost())return;
   const h=document.getElementById('mirror-hint');
   if(!h)return;
   h.style.display='block';
@@ -945,7 +954,7 @@ function showEnding(end){
 
 function startGame(mode){
   // 镜像站上 AI 模式调不通云端（网关按域名鉴权），先弹提示引导去官方版
-  if(mode==='ai'&&!MIRROR_ACK&&!isOfficialOrigin()){
+  if(mode==='ai'&&!MIRROR_ACK&&isMirrorHost()){
     document.getElementById('mirror-modal').style.display='flex';
     return;
   }

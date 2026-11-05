@@ -76,6 +76,8 @@
   }
   #scene .loc-tag{color:var(--gold);font-size:12px;letter-spacing:3px;margin-bottom:10px}
   #scene .story{line-height:2.05;font-size:15px;white-space:pre-wrap}
+  #scene-art{display:none;margin-bottom:14px}
+  #scene-art img{width:100%;display:block;border-radius:6px;border:1px solid var(--line);opacity:0;transition:opacity .5s;aspect-ratio:3/2;object-fit:cover}
 
   #choices{display:flex;flex-direction:column;gap:8px}
   .choice{
@@ -189,6 +191,7 @@
 
     <div id="scene">
       <div class="loc-tag" id="loc-tag"></div>
+      <div id="scene-art"><img id="scene-img" alt=""></div>
       <div class="story" id="story"></div>
     </div>
 
@@ -829,9 +832,42 @@ function applyAiResult(data){
   // 展示剧情（文本驱动：无预设选项，等玩家输入行动）
   document.getElementById('loc-tag').textContent='哥谭 · 第'+day()+'夜';
   document.getElementById('story').textContent=data.story||'（主持人沉默了片刻。）';
+  setSceneArt(data.story);
   document.getElementById('choices').innerHTML='';
   document.getElementById('free-row').style.display='flex';
   if(window.innerWidth>700)document.getElementById('action-input').focus();
+}
+
+/* ================= 场景配图（按地点/人物关键词触发） ================= */
+const SCENE_ART=[
+  [/小丑/, 'assets/joker.jpg'],
+  [/蝙蝠侠/, 'assets/batman.jpg'],
+  [/罗宾/, 'assets/robin.jpg'],
+  [/庄园|蝙蝠洞/, 'assets/manor.jpg'],
+  [/阿卡姆|疯人院/, 'assets/arkham.jpg'],
+  [/冰山|企鹅人/, 'assets/iceberg.jpg'],
+  [/韦恩企业|韦恩大楼|韦恩塔/, 'assets/wayne.jpg'],
+  [/码头|港区/, 'assets/docks.jpg'],
+  [/犯罪巷|公园街/, 'assets/parkrow.jpg'],
+  [/市中心|闹市/, 'assets/downtown.jpg'],
+  [/公寓|出租屋/, 'assets/home.jpg'],
+];
+const LOC_ART={home:'assets/home.jpg',downtown:'assets/downtown.jpg',parkrow:'assets/parkrow.jpg',docks:'assets/docks.jpg',wayne:'assets/wayne.jpg',arkham:'assets/arkham.jpg',iceberg:'assets/iceberg.jpg',commute:'assets/downtown.jpg'};
+function setSceneArt(text,locKey){
+  const box=document.getElementById('scene-art');
+  const img=document.getElementById('scene-img');
+  if(!box||!img)return;
+  let src='';
+  if(text){for(const p of SCENE_ART){if(p[0].test(text)){src=p[1];break;}}}
+  if(!src&&locKey&&LOC_ART[locKey])src=LOC_ART[locKey];
+  if(src){
+    box.style.display='block';
+    if(img.getAttribute('src')!==src){
+      img.style.opacity=0;
+      img.onload=()=>{img.style.opacity=1;};
+      img.src=src;
+    }else{img.style.opacity=1;}
+  }else{box.style.display='none';}
 }
 
 /* ================= 引擎 ================= */
@@ -840,12 +876,14 @@ function day(){return Math.floor(turn/4)+1;}
 function showSpecial(sp){
   document.getElementById('loc-tag').textContent='★ 关键时刻';
   document.getElementById('story').textContent=sp.text;
+  setSceneArt(sp.text);
   renderChoices(sp.choices.filter(c=>!c.when||c.when(S)));
 }
 
 function showEvent(ev,locKey){
   document.getElementById('loc-tag').textContent=LOCS[locKey].name;
   document.getElementById('story').textContent=ev.text;
+  setSceneArt(ev.text,locKey);
   renderChoices(ev.choices.filter(c=>!c.when||c.when(S)));
 }
 

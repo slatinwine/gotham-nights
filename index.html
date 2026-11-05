@@ -619,26 +619,51 @@ async function hashIp(ip){
   const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode('gotham-nights:'+ip));
   return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
 }
+let VISITOR_HASH=null, PENDING_PLAY=false, VCLOUD=null;
+function getVC(){
+  if(VCLOUD)return VCLOUD;
+  if(typeof WorkBuddyCloud==='undefined')return null;
+  VCLOUD=WorkBuddyCloud.createWorkBuddyCloud({
+    endpoint:AI_CFG.endpoint,
+    publishableKey:AI_CFG.publishableKey,
+  });
+  return VCLOUD;
+}
+async function refreshVisitorCount(){
+  const el=document.getElementById('visitor-count');
+  const c=getVC();
+  if(!c)return;
+  const [{count:vip,error:e1},{count:plays,error:e2}]=await Promise.all([
+    c.database.from('visitors').select('ip_hash',{count:'exact'}).limit(1),
+    c.database.from('plays').select('id',{count:'exact'}).limit(1),
+  ]);
+  if(e1||e2)throw 0;
+  if(typeof vip==='number'&&el){
+    el.innerHTML='已有<b>'+vip+'</b>位过客踏入哥谭之夜 · 累计夜行<b>'+plays+'</b>次';
+  }
+}
 async function initVisitorCount(){
   const el=document.getElementById('visitor-count');
   try{
     if(typeof WorkBuddyCloud==='undefined')throw 0;
     const ip=await getVisitorIp();
     if(!ip)throw 0;
-    const h=await hashIp(ip);
-    const cloud=WorkBuddyCloud.createWorkBuddyCloud({
-      endpoint:AI_CFG.endpoint,
-      publishableKey:AI_CFG.publishableKey,
-    });
-    await cloud.database.from('visitors').upsert({ip_hash:h},{ignoreDuplicates:true});
-    const {count,error}=await cloud.database.from('visitors').select('ip_hash',{count:'exact'}).limit(1);
-    if(error)throw 0;
-    if(typeof count==='number'&&el){
-      el.innerHTML='已有<b>'+count+'</b>位过客踏入哥谭之夜';
-    }
+    VISITOR_HASH=await hashIp(ip);
+    const c=getVC();
+    if(!c)throw 0;
+    await c.database.from('visitors').upsert({ip_hash:VISITOR_HASH},{ignoreDuplicates:true});
+    if(PENDING_PLAY){PENDING_PLAY=false;recordPlay();}
+    await refreshVisitorCount();
   }catch(e){
     if(el)el.style.display='none'; // 统计不可用时静默隐藏
   }
+}
+/* 每次开始游戏记一次游玩（按 IP 关联）；IP 还没解析完就先挂起 */
+function recordPlay(){
+  const c=getVC();
+  if(!c||!VISITOR_HASH){PENDING_PLAY=true;return;}
+  c.database.from('plays').insert({ip_hash:VISITOR_HASH})
+    .then(()=>refreshVisitorCount()).catch(()=>{});
 }
 initVisitorCount();
 
@@ -959,6 +984,7 @@ function startGame(mode){
     return;
   }
   MODE=mode||'classic';
+  recordPlay(); // 游玩统计（IP 关联，异步不阻塞开局）
   S=newState();turn=0;gameOver=false;pendingSpecial=null;HISTORY=[];
   document.getElementById('title-screen').style.display='none';
   document.getElementById('game').style.display='block';

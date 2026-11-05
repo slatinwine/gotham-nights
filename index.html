@@ -595,7 +595,10 @@ const AI_CFG = {
   endpoint: 'https://gotham-nights.app.workbuddy.host',
   publishableKey: 'wbpk_NuhMTQZ3d86Z7YCybLzmNm_Z6jtuK2iSRAJjZT94NZXDqOv5VkuO84y',
 };
-let MODE='classic', cloud=null, aiModel=null, HISTORY=[], aiBusy=false;
+let MODE='classic', cloud=null, HISTORY=[], aiBusy=false;
+/* Flash 模型池：每回合轮换使用，失败自动换下一个 */
+const FLASH_MODELS=['glm-5.3-flash','deepseek-v4.1-flash','minimax-m3.1-flash','space-bunny','hunyuan-chat'];
+let MODEL_POOL=null, poolIdx=Math.floor(Math.random()*100); // 随机起点，避免所有人都在同一模型上排队
 
 function aiInit(){
   if(cloud)return true;
@@ -606,13 +609,17 @@ function aiInit(){
   });
   return true;
 }
-async function aiPickModel(){
-  if(aiModel)return aiModel;
-  const models=await cloud.llm.models.list();
-  const m=models.find(x=>x.disabled!==true);
-  if(!m)throw new Error('云端模型列表为空');
-  aiModel=m.id;
-  return aiModel;
+async function aiModelPool(){
+  if(MODEL_POOL&&MODEL_POOL.length)return MODEL_POOL;
+  let available=[];
+  try{
+    const models=await cloud.llm.models.list();
+    available=models.filter(m=>m.disabled!==true).map(m=>m.id);
+  }catch(e){/* 拉不到列表就直接用预设池，靠调用失败再轮换 */}
+  const flash=FLASH_MODELS.filter(id=>!available.length||available.includes(id));
+  const rest=available.filter(id=>!FLASH_MODELS.includes(id));
+  MODEL_POOL=flash.length?flash.concat(rest.slice(0,3)):(available.slice(0,6).length?available.slice(0,6):FLASH_MODELS);
+  return MODEL_POOL;
 }
 function aiSystemPrompt(){
   const s=S;
@@ -648,18 +655,28 @@ async function aiTurn(actionText){
   render();
   try{
     if(!aiInit())throw new Error('云端SDK未加载');
-    const model=await aiPickModel();
+    const pool=await aiModelPool();
     HISTORY.push({role:'user',content:actionText||'（新的一夜开始，请生成开场剧情）'});
     if(HISTORY.length>21)HISTORY.splice(0,HISTORY.length-21);
-    let answer='';
-    try{
-      answer=await aiStream(model,[{role:'system',content:aiSystemPrompt()},...HISTORY],true);
-    }catch(e){
-      const code=(e&&e.error&&e.error.code)||'';
-      if(String(code).startsWith('request_')){
-        answer=await aiStream(model,[{role:'system',content:aiSystemPrompt()},...HISTORY],false);
-      }else{throw e;}
+    // 轮换模型 + 故障转移：一个模型失败就换下一个，全挂才报错
+    let answer='', lastErr=null, gotIt=false;
+    for(let i=0;i<pool.length;i++){
+      const model=pool[(poolIdx+i)%pool.length];
+      try{
+        try{
+          answer=await aiStream(model,[{role:'system',content:aiSystemPrompt()},...HISTORY],true);
+        }catch(e){
+          const code=(e&&e.error&&e.error.code)||'';
+          if(String(code).startsWith('request_')){
+            answer=await aiStream(model,[{role:'system',content:aiSystemPrompt()},...HISTORY],false);
+          }else{throw e;}
+        }
+        poolIdx=(poolIdx+i+1)%pool.length; // 下回合从下一个模型开始
+        gotIt=true;
+        break;
+      }catch(e){ lastErr=e; }
     }
+    if(!gotIt)throw lastErr||new Error('全部模型不可用');
     let data=null;
     try{
       data=parseAiJson(answer);

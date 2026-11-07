@@ -27,3 +27,7 @@
 - `index.html` — 游戏本体（界面、剧本、AI 主持逻辑）
 - `assets/` — 场景与角色插图
 - `.github/workflows/` — Pages 部署工作流
+
+## 关注公众号
+
+![公众号二维码](qrcode.jpg)
